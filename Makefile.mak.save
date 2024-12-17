@@ -1,0 +1,12 @@
+CC = g++                  # Compiler
+CFLAGS = -std=c++17 -Wall # Compilation flags
+all: main
+
+main: main.o
+	$(CC) -o main main.o
+
+main.o: main.cpp
+	$(CC) $(CFLAGS) -c main.cpp
+
+clean:
+	rm -f *.o main
