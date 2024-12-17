@@ -215,7 +215,7 @@ void spn(Process p[], int num_processes) {
             completed_count++;
             cout << "Process: " << current_process->name
                  << ", Start Time: " << current_process->start_time
-                 << ", End Time: " << current_process->end_time << endl;
+                 << ",  End Time: " << current_process->end_time << endl;
 
              //update stats pf process
         current_process->stats.finish_time = current_process->end_time;
