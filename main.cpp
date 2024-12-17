@@ -89,6 +89,13 @@ void spn(Process p[], int num_processes) {
             cout << "Process: " << current_process->name
                  << ", Start Time: " << current_process->start_time
                  << ", End Time: " << current_process->end_time << endl;
+
+             //update stats pf process
+        current_process->stats.finish_time = current_process->end_time;
+        current_process->stats.turnaround = current_process->stats.finish_time - current_process->arrival_time;
+        current_process->stats.normturn = current_process->stats.turnaround / (float)current_process->service_time;
+
+      
                  
         } else {
             // If no process is ready, move time forward
