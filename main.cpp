@@ -365,6 +365,7 @@ int main() {
         printf("Input read: '%s'\n", inputt);  // Check what is read from stdin
     }
     return 0;*/
+    
     char mode[10]; //trace or stats
     Policy policy;
     Process processes[MAX_PROCESSES];
