@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 #include <queue>
+#include <vector>
 #include <iomanip>
 #include <iostream> // For std::cout, std::endl
 #include <algorithm> // For std::sort
@@ -21,6 +23,7 @@ typedef struct {
     int service_time; 
     int start_time;
     int end_time;
+    int remaining_time;
     Stats stats;  
     bool completed;   
 } Process;
@@ -85,102 +88,224 @@ void print_trace(Process p[], int num_processes, int timeline_length, const stri
     cout << "------------------------------------------------" << endl;
 }
 
-void round_robin(Process p[],int process_time, int num_processes, int quantum) {
-    queue<Process*> process_queue;  // Queue to hold processes
-    int current_time = 0;           // Current time in the schedule
-    int completed_count = 0; 
-    std::vector<char> timeline(process_time, ' ');       // Track completed processes
 
-    // Enqueue processes in order of arrival
-    for (int i = 0; i < num_processes; ++i) {
-        p[i].start_time = -1;  // -1 indicates the process hasn't started yet
-        process_queue.push(&p[i]);
+
+// Updated Round Robin function using STL queue
+void round_robin(Process processes[], int num_processes, int quantum, int timeline) {
+    int time = 0;
+    int completed_processes = 0;
+    std::queue<int> ready_queue;
+
+    // Initialize process attributes
+    for (int i = 0; i < num_processes; i++) {
+        processes[i].remaining_time = processes[i].service_time;
+        processes[i].completed = false;
     }
 
-    while (completed_count < num_processes) {
-        if (process_queue.empty()) {
-            // If no processes are ready, move time forward
-            current_time++;
-            for (int i = 0; i < num_processes; ++i) {
-                if (!p[i].completed && p[i].arrival_time <= current_time) {
-                    process_queue.push(&p[i]);
-                }
+    
+
+    while (completed_processes < num_processes && time < timeline) {
+        // Add newly arrived processes to the queue
+        for (int i = 0; i < num_processes; i++) {
+            if (processes[i].arrival_time == time && processes[i].remaining_time > 0 && !processes[i].completed) {
+                ready_queue.push(i);
             }
-            
+        }
+
+        if (ready_queue.empty()) {
+            //printf("%d\t-\n", time);
+            time++;
             continue;
         }
 
-        // Get the next process from the queue
-        Process* current_process = process_queue.front();
-        process_queue.pop();
+        int current = ready_queue.front();
+        ready_queue.pop();
 
-        // If the process hasn't started yet, set its start time
-        if (current_process->start_time == -1) {
-            current_process->start_time = current_time;
+        if (processes[current].remaining_time == processes[current].service_time) {
+            processes[current].start_time = time;
         }
 
-        // Execute the process for the time quantum or remaining service time
-        int time_to_run = min(quantum, current_process->service_time);
-        current_process->service_time -= time_to_run;
-        current_time = (current_time +time_to_run);
-        // Mark the timeline with the process execution (for each time slice)
-        for (int t = current_time - time_to_run; t < current_time; ++t) {
-            timeline[t] = current_process->name;  // Use the first character of the process name
+        int execution_time = (processes[current].remaining_time < quantum) ? processes[current].remaining_time : quantum;
+
+        for (int t = 0; t < execution_time; t++) {
+            printf("%c", processes[current].name);
         }
 
+        processes[current].remaining_time -= execution_time;
 
-        // If the process is completed, calculate stats
-        if (current_process->service_time == 0) {
-
-            current_process->completed = true;
-            completed_count++;
-            current_process->end_time = current_time -1;
-            cout << "Process: " << current_process->name
-                 << ", Start Time: " << current_process->start_time
-                 << ", End Time: " << current_process->end_time << endl;
-
-
-            // Update stats
-            current_process->stats.finish_time = current_process->end_time;
-            current_process->stats.turnaround = current_process->stats.finish_time - current_process->arrival_time;
-            current_process->stats.normturn = current_process->stats.turnaround / (float)(current_process->end_time - current_process->start_time);
+        if (processes[current].remaining_time == 0) {
+            processes[current].completed = true;
+            processes[current].end_time = time;
+            //calculate_stats(&processes[current], time);
+            completed_processes++;
         } else {
-            // If the process is not finished, put it back in the queue
-            process_queue.push(current_process);
-        }
-
-        // Add newly arrived processes to the queue
-        for (int i = 0; i < num_processes; ++i) {
-            if (!p[i].completed && p[i].arrival_time <= current_time) {
-                bool already_in_queue = false;
-
-                // Check if the process is already in the queue
-                queue<Process*> temp_queue = process_queue;
-                while (!temp_queue.empty()) {
-                    if (temp_queue.front() == &p[i]) {
-                        already_in_queue = true;
-                        break;
-                    }
-                    temp_queue.pop();
-                }
-
-                // Enqueue if not already in queue
-                if (!already_in_queue) {
-                    process_queue.push(&p[i]);
-                }
-            }
+            ready_queue.push(current); // Re-enqueue the process if not completed
         }
     }
-    for(int t=0;t<=process_time;t++){
-        printf("%c",timeline[t]);
+
+    printf("\nRound Robin Scheduling Results:\n");
+    printf("Name\tArrival\tService\tStart\tEnd\n");
+    for (int i = 0; i < num_processes; i++) {
+        printf("%c\t%d\t%d\t%d\t%d\n",
+               processes[i].name,
+               processes[i].arrival_time,
+               processes[i].service_time,
+               processes[i].start_time,
+               processes[i].end_time);
     }
-    printf("\n");
-    //print_trace(p, num_processes, process_time, "RR-" + to_string(quantum),timeline);
 }
 
     // Print trace output (timeline)
-   
+void srt(Process processes[], int num_processes, int timeline) {
+    int time = 0;
+    int completed_processes = 0;
+    std::vector<char> timeline_(timeline, ' ');
+    int t=0;
     
+
+    while (completed_processes < num_processes && time < timeline) {
+        int shortest = -1;
+        int min_remaining_time = INT_MAX;
+
+        for (int i = 0; i < num_processes; i++) {
+            if (!processes[i].completed && processes[i].arrival_time <= time && processes[i].remaining_time < min_remaining_time) {
+                shortest = i;
+                min_remaining_time = processes[i].remaining_time;
+            }
+        }
+
+        if (shortest == -1) {
+            time++;
+            continue;
+        }
+
+        // Process the shortest remaining time process
+        if (processes[shortest].remaining_time == processes[shortest].service_time) {
+            processes[shortest].start_time = time;
+        }
+         //printf("%c",  processes[shortest].name);
+         timeline_[t] = processes[shortest].name;
+         t++;
+
+
+        processes[shortest].remaining_time--;
+        time++;
+
+        // Check if the process is completed
+        if (processes[shortest].remaining_time == 0) {
+            processes[shortest].completed = true;
+            processes[shortest].end_time = time-1;
+            //calculate_stats(&processes[shortest], time);
+            completed_processes++;
+        }
+    }
+     for(int k=0;k<=timeline;k++){
+        printf("%c",timeline_[k]);
+    }
+    printf("\n");
+    
+    printf("\nSRT Scheduling Results:\n");
+    printf("Name\tArrival\tService\tStart\tEnd\n");
+    for (int i = 0; i < num_processes; i++) {
+        printf("%c\t%d\t%d\t%d\t%d\n",
+               processes[i].name,
+               processes[i].arrival_time,
+               processes[i].service_time,
+               processes[i].start_time,
+               processes[i].end_time);
+    }
+}
+ 
+    
+
+void feedback_scheduling(Process processes[], int num_processes, int timeline, const char *mode) {
+    vector<queue<Process>> mlfq(10); // Multi-level Feedback Queue with 10 levels
+    vector<Process> completed_processes; // To store completed processes
+    int current_time = 0;
+
+    // Push all processes into the highest priority queue at their arrival time
+    for (int i = 0; i < num_processes; ++i) {
+        processes[i].start_time = -1; // Initialize start time
+        processes[i].end_time = -1;  // Initialize end time
+    }
+
+    while (current_time < timeline || !completed_processes.empty()) {
+        // Push newly arrived processes to the highest priority queue
+          bool all_queues_empty = true;
+    for (const auto &q : mlfq) {
+        if (!q.empty()) {
+            all_queues_empty = false;
+            break;
+        }
+    }
+    if (all_queues_empty && completed_processes.size() == num_processes) {
+        break; // Exit if all processes are completed
+    }
+        for (int i = 0; i < num_processes; ++i) {
+            if (processes[i].arrival_time == current_time && !processes[i].completed) {
+                mlfq[0].push(processes[i]);
+            }
+        }
+
+        bool processed = false;
+
+        // Iterate over queues and process tasks
+        for (size_t i = 0; i < mlfq.size(); ++i) {
+            if (!mlfq[i].empty()) {
+                Process current = mlfq[i].front();
+                mlfq[i].pop();
+
+                if (current.start_time == -1) {
+                    current.start_time = current_time;
+                }
+
+                // Process for one quantum (q=1)
+                current.remaining_time -= 1;
+                current_time++;
+                processed = true;
+
+                // Trace mode output
+                if (strcmp(mode, "trace") == 0) {
+                    cout << "Time " << current_time << ": Process " << current.name
+                         << " executed (queue " << i + 1 << ")\n";
+                }
+
+                // Check if process is completed
+                if (current.remaining_time == 0) {
+                    current.completed = true;
+                    current.end_time = current_time;
+                    current.stats.turnaround = current.end_time - current.arrival_time;
+                    current.stats.normturn = current.stats.turnaround / (float)current.service_time;
+                    completed_processes.push_back(current);
+                } else {
+                    // Push to next lower priority queue
+                    if (i + 1 < mlfq.size()) {
+                        mlfq[i + 1].push(current);
+                    } else {
+                        mlfq[i].push(current); // Stay in the same queue if no lower queue exists
+                    }
+                }
+
+                break; // Process only one task per time step
+            }
+        }
+
+        if (!processed) {
+            current_time++; // Increment time if no task is processed
+        }
+    }
+
+    // Stats mode output
+    if (strcmp(mode, "stats") == 0) {
+        cout << "Name\tArrival\tService\tStart\tEnd\tTurnaround\tNormTurn\n";
+        for (const auto &process : completed_processes) {
+            cout << process.name << "\t" << process.arrival_time << "\t" << process.service_time << "\t"
+                 << process.start_time << "\t" << process.end_time << "\t"
+                 << fixed << setprecision(2) << process.stats.turnaround << "\t\t"
+                 << process.stats.normturn << "\n";
+        }
+    }
+}
 
 
 
@@ -215,7 +340,7 @@ void spn(Process p[], int num_processes) {
             completed_count++;
             cout << "Process: " << current_process->name
                  << ", Start Time: " << current_process->start_time
-                 << ",  End Time: " << current_process->end_time << endl;
+                 << ", End Time: " << current_process->end_time << endl;
 
              //update stats pf process
         current_process->stats.finish_time = current_process->end_time;
@@ -289,6 +414,7 @@ getchar();
         }
 
         // Initialize stats to zero
+        processes[i].remaining_time = processes[i].service_time;
         processes[i].stats.turnaround = 0.0;
         processes[i].stats.normturn = 0.0;
         processes[i].completed=false;
@@ -299,7 +425,10 @@ getchar();
 
 
  //spn(processes, num_processes);
- round_robin(processes,timeline,num_processes,policy.quantum);
+ //round_robin(processes,num_processes,policy.quantum,timeline);
+ feedback_scheduling( processes, num_processes, timeline,mode);
+ 
+//srt(processes, num_processes, timeline);
 
 // TEST FCFS
   /*     cout << "FCFS Scheduling:" << endl;
