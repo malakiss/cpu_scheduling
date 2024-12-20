@@ -387,6 +387,7 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
 
     // Print trace output (timeline)
     void srt(Process processes[], int num_processes, int timeline) {
+    
     int time = 0;
     int completed = 0;
 
