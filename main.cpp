@@ -11,9 +11,11 @@
 #include <cmath>
 #include <vector>
 #include <unordered_map>
+#include <tuple>
 
 using namespace std;
 #define MAX_PROCESSES 100
+#define all(v) v.begin(), v.end()
 
 typedef struct {
     int finish_time;
@@ -39,50 +41,70 @@ typedef struct {
     int quantum=-1;
 }Policy;
 
-void printTrace(Process processes[], int num_processes,int policy_number) {
-    const char* policy_name;
+void printTrace(Process processes[], int num_processes,int policy_number,int quantum) {
+    char policy_name[50]; // Use a buffer to construct the policy name
     switch (policy_number) {
-        case 1: policy_name = "FCFS"; break;
-        case 2: policy_name = "RR"; break;
-        case 3: policy_name = "SPN"; break;
-        case 4: policy_name = "SRT"; break;
-        case 5: policy_name = "HRRN"; break;
-        case 6: policy_name = "FB-1"; break;
-        case 7: policy_name = "FB-2i"; break;
-        case 8: policy_name = "AGING"; break;
-        default: policy_name = "UNKNOWN"; break;
+        case 1: 
+            strcpy(policy_name, "FCFS"); 
+            break;
+        case 2: 
+            snprintf(policy_name, sizeof(policy_name), "RR-%d", quantum); 
+            break; // Add the quantum value for RR
+        case 3: 
+            strcpy(policy_name, "SPN"); 
+            break;
+        case 4: 
+            strcpy(policy_name, "SRT"); 
+            break;
+        case 5: 
+            strcpy(policy_name, "HRRN"); 
+            break;
+        case 6: 
+            strcpy(policy_name, "FB-1"); 
+            break;
+        case 7: 
+            strcpy(policy_name, "FB-2i"); 
+            break;
+        case 8: 
+            strcpy(policy_name, "Aging"); 
+            break;
+        default: 
+            strcpy(policy_name, "UNKNOWN"); 
+            break;
     }
 
-    // Print the scheduling policy name
-    printf("%s\t", policy_name);
-    int total_time=20;
-    for (int t = 0; t < total_time; t++) {
-        printf("%2d ", t);
-    }
-    printf("\n");
-    for (int t = 0; t < total_time; t++) {
-        printf("----");
+   int total_time = 20; // Maximum timeline to display
+
+    // Print the scheduling policy name and timeline headers
+    printf("%-6s", policy_name); // Align policy name
+    for (int t = 0; t <= total_time; t++) {
+        printf("%d ", t % 10); // Print single-digit time, wrapping at 10
     }
     printf("\n");
 
+    // Print separator line
+    printf("------------------------------------------------\n");
+
+    // Print each process's timeline
     for (int i = 0; i < num_processes; i++) {
-        printf("%c        | ", processes[i].name);
-        for (int t = 0; t < total_time; t++) {
-            if (processes[i].timeline[t] == 1)
-                printf(" *|"); // Executing
-            else if (processes[i].timeline[t] == 0)
-                printf(" .|"); // In ready queue
-            else
-                printf("  |"); // Not ready
+        printf("%c     |", processes[i].name); // Align process name
+        for (int t = 0; t <total_time; t++) {
+            if (processes[i].timeline[t] == 1) {
+                printf("*|"); // Process is executing
+            } else if (processes[i].timeline[t] == 0) {
+                printf(".|"); // Process is waiting
+            } else {
+                printf(" |"); // Process is not ready
+            }
         }
-        printf("\n");
+        printf(" \n");
     }
-    printf("          ");
-    for (int t = 0; t < total_time; t++) {
-        printf("-- ");
-    }
+
+    // Print the footer line
+    printf("------------------------------------------------\n");
     printf("\n");
-}
+    }
+
 
 void printstats(Process processes[], int numProcesses,int policy_number) {
     // Print headers
@@ -231,9 +253,6 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
     bool process_found = false;
     int process_index = -1;
     int i, j;
-      for (int i = 0; i < num_processes; i++) {
-        printf("%c",processes[i].name);
-      }
     // Initialize stats
     for (int i = 0; i < num_processes; i++) {
         processes[i].remaining_time = processes[i].service_time;  // Set remaining time to burst time
@@ -357,30 +376,6 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
             arrival_time[process_index] = current_time + 0.1; // Re-queue process for further execution
         }
     }
-
-    // Output execution sequence
-    printf("\nExecution sequence: ");
-    for (int i = 0; i < exec_index; i++) {
-        printf("%C ", execution_sequence[i]);
-    }
-    for (int i = 0; i < num_processes; ++i) {
-        processes[i].start_time=start_times[i][0];
-    }
-
-
-    
-    // Print results
-    printf("\nName\tArrival\tService\tStart\tEnd\tTurnaround\tNormTurn\n");
-    for (int i = 0; i < num_processes; ++i) {
-        printf("%c\t%d\t%d\t%d\t%d\t%d\t%.2f\n",
-               processes[i].name,
-               processes[i].arrival_time,
-               processes[i].service_time,
-               processes[i].start_time, // First start time
-               processes[i].end_time,
-               processes[i].stats.turnaround,
-               (float)processes[i].stats.turnaround/ processes[i].service_time);
-    }
    
 }
 
@@ -389,6 +384,7 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
  void srt(Process processes[], int num_processes, int timeline) {
     
     int time = 0;
+    
     int completed = 0;
 
     while (completed < num_processes && time < timeline) {
@@ -408,7 +404,7 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
 
         if (shortest_idx == -1) {
             // No process is ready, advance time
-            printf("NOUURR");
+            //printf("NOUURR");
             time++;
             continue;
         }
@@ -441,7 +437,7 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
             completed++; // Increment the completed process count
         }
     }
-    printf("\nSRT Scheduling Results:\n");
+    /*printf("\nSRT Scheduling Results:\n");
     printf("Name\tArrival\tService\tStart\tEnd\n");
     for (int i = 0; i < num_processes; i++) {
         printf("%c\t%d\t%d\t%d\t%d\n",
@@ -450,7 +446,7 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
                processes[i].service_time,
                processes[i].start_time,
                processes[i].end_time);
-    }
+    }*/
 }
  
 
@@ -786,35 +782,88 @@ void hrrn(Process processes[], int numProcesses) {
  // printTrace(processes, numProcesses, current_time);
 }
 
+
+bool byPriorityLevel (const tuple<int,int,int>&a,const tuple<int,int,int>&b){
+    if(get<0>(a)==get<0>(b))
+        return get<2>(a)> get<2>(b);
+    return get<0>(a) > get<0>(b);
+}
+
+void aging(Process processes[], int process_count, int timeline,int quantum) {
+    std::vector<std::tuple<int, int, int>> processes_vector; //tuple of priority level, process index and total waiting time
+    int j=0,currentProcess=-1;
+
+    for(int time =0;time<timeline;time++){
+        while(j<process_count && processes[j].arrival_time<=time){
+            processes_vector.push_back(make_tuple(processes[j].service_time,j,0));
+            j++;
+        }
+
+        for(int i=0;i<processes_vector.size();i++){
+            if(get<1>(processes_vector[i])==currentProcess){
+                get<2>(processes_vector[i])=0;
+                get<0>(processes_vector[i])=processes[currentProcess].service_time;
+            }
+            else{
+                get<0>(processes_vector[i])++;
+                get<2>(processes_vector[i])++;
+            }
+        }
+        sort(processes_vector.begin(),processes_vector.end(),byPriorityLevel);
+        currentProcess=get<1>(processes_vector[0]);
+        int k=get<1>(processes_vector[0]);
+        int currentQuantum = quantum;
+        while(currentQuantum-- && time<timeline){
+            //timeline[time][currentProcess]='*';
+            processes[k].timeline[time]=1;
+            time++;
+        }
+        time--;
+    }
+    //fillInWaitTime();
+    for(int i=0; i<process_count; i++){
+         for (int j = processes[i].arrival_time; j < timeline; j++){
+            if(processes[i].timeline[j]!=1)
+               processes[i].timeline[j]=0;
+         }
+    }
+    
+}
+
+
 void executePolicy(int policy_id, int quantum, Process processes[], int num_processes,int timeline) {
     switch (policy_id) {
         case 1:
-            printf("FCFS:\n");
+            //printf("FCFS:\n");
             fcfs(processes, num_processes);
             break;
         case 2:
-            printf("RR-%d:\n", quantum);
+            //printf("RR-%d:\n", quantum);
             round_robin(processes, num_processes, quantum, timeline);
             break;
         case 3:
-            printf("SPN:\n");
+            //printf("SPN:\n");
             spn(processes, num_processes);
             break;
         case 4:
-            printf("SRT:\n");
+            //printf("SRT:\n");
             srt(processes, num_processes,timeline);
             break;
         case 5:
-            printf("HRRN:\n");
+            //printf("HRRN:\n");
             hrrn(processes, num_processes);
             break;
         case 6:
-            printf("FB-1:\n");
+            //printf("FB-1:\n");
            // feedback_scheduling(processes, num_processes);
             break;
         case 7:
-            printf("FB-2i:\n");
+            //printf("FB-2i:\n");
             fb_2i(processes, num_processes);
+            break;
+         case 8:
+            //printf("Aging:\n");
+            aging(processes, num_processes, timeline,quantum);
             break;
         default:
             printf("Invalid policy ID: %d\n", policy_id);
@@ -871,7 +920,7 @@ int main() {
         // Execute the policy
         executePolicy(policy_id, quantum, cloned_processes, num_processes,timeline);
         if (strcmp(mode,"trace")==0){
-        printTrace(cloned_processes,num_processes,policy_id);
+        printTrace(cloned_processes,num_processes,policy_id,quantum);
         }else printstats(cloned_processes,num_processes,policy_id);
         // Move to the next policy
         policy_token = strtok(NULL, ",");
