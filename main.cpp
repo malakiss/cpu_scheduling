@@ -15,7 +15,7 @@
 
 using namespace std;
 #define MAX_PROCESSES 100
-#define all(v) v.begin(), v.end()
+
 
 typedef struct {
     int finish_time;
@@ -41,7 +41,7 @@ typedef struct {
     int quantum=-1;
 }Policy;
 
-void printTrace(Process processes[], int num_processes,int policy_number,int quantum) {
+void printTrace(Process processes[], int num_processes,int policy_number,int quantum,int timeline) {
     char policy_name[50]; // Use a buffer to construct the policy name
     switch (policy_number) {
         case 1: 
@@ -73,7 +73,7 @@ void printTrace(Process processes[], int num_processes,int policy_number,int qua
             break;
     }
 
-   int total_time = 20; // Maximum timeline to display
+   int total_time = timeline; // Maximum timeline to display
 
     // Print the scheduling policy name and timeline headers
     printf("%-6s", policy_name); // Align policy name
@@ -106,20 +106,38 @@ void printTrace(Process processes[], int num_processes,int policy_number,int qua
     }
 
 
-void printstats(Process processes[], int numProcesses,int policy_number) {
+void printstats(Process processes[], int numProcesses,int policy_number,int quantum) {
     // Print headers
 
-   const char* policy_name;
+   char policy_name[50]; // Use a buffer to construct the policy name
     switch (policy_number) {
-        case 1: policy_name = "FCFS"; break;
-        case 2: policy_name = "RR"; break;
-        case 3: policy_name = "SPN"; break;
-        case 4: policy_name = "SRT"; break;
-        case 5: policy_name = "HRRN"; break;
-        case 6: policy_name = "FB-1"; break;
-        case 7: policy_name = "FB-2i"; break;
-        case 8: policy_name = "AGING"; break;
-        default: policy_name = "UNKNOWN"; break;
+        case 1: 
+            strcpy(policy_name, "FCFS"); 
+            break;
+        case 2: 
+            snprintf(policy_name, sizeof(policy_name), "RR-%d", quantum); 
+            break; // Add the quantum value for RR
+        case 3: 
+            strcpy(policy_name, "SPN"); 
+            break;
+        case 4: 
+            strcpy(policy_name, "SRT"); 
+            break;
+        case 5: 
+            strcpy(policy_name, "HRRN"); 
+            break;
+        case 6: 
+            strcpy(policy_name, "FB-1"); 
+            break;
+        case 7: 
+            strcpy(policy_name, "FB-2i"); 
+            break;
+        case 8: 
+            strcpy(policy_name, "Aging"); 
+            break;
+        default: 
+            strcpy(policy_name, "UNKNOWN"); 
+            break;
     }
 
     // Print the scheduling policy name
@@ -127,37 +145,37 @@ void printstats(Process processes[], int numProcesses,int policy_number) {
 
     printf("Process    |");
     for (int i = 0; i < numProcesses; i++) {
-        printf("  %-6c  |", processes[i].name);
+        printf("  %c  |", processes[i].name);
     }
     printf("\n");
 
     // Print arrival times
     printf("Arrival    |");
     for (int i = 0; i < numProcesses; i++) {
-        printf("  %-6d  |", processes[i].arrival_time);
+        printf("%3d  |", processes[i].arrival_time);
     }
     printf("\n");
 
     // Print service times
     printf("Service    |");  
     for (int i = 0; i < numProcesses; i++) {
-        printf("  %-6d  |", processes[i].service_time);
+        printf("%3d  |", processes[i].service_time);
     }
-     printf("  Mean  |");
+     printf(" Mean|");
     printf("\n");
 
     // Print finish times
     printf("Finish     |");
     for (int i = 0; i < numProcesses; i++) {
-        printf("  %-6d  |", processes[i].stats.finish_time);
+        printf("%3d  |", processes[i].stats.finish_time);
     }
-    printf("--------|");
+    printf("-----|");
     printf("\n");
 
     // Print turnaround times
     printf("Turnaround |");
     for (int i = 0; i < numProcesses; i++) {
-        printf("  %-5.d   ", processes[i].stats.turnaround);printf("|");
+        printf("%3d  ", processes[i].stats.turnaround);printf("|");
     }
      float totalTurnaround = 0.0;
     for (int i = 0; i < numProcesses; i++) {
@@ -165,12 +183,19 @@ void printstats(Process processes[], int numProcesses,int policy_number) {
     }
     float meanTurnaround = totalTurnaround / (float)numProcesses;
     
-     printf("  %-4.2f  |", meanTurnaround);
-    printf("\n");
+      if(meanTurnaround>=10.0)
+		printf("%2.2f|\n",meanTurnaround);
+    else
+	 	printf(" %2.2f|\n",meanTurnaround);
+
 
     printf("NormTurn   |");//turnaround / service
     for (int i = 0; i < numProcesses; i++) {
-        printf("  %-6.2f  |", processes[i].stats.normturn);
+        if(processes[i].stats.normturn>=10 )
+            printf("%2.2f|",processes[i].stats.normturn);
+        else
+            printf(" %2.2f|",processes[i].stats.normturn);
+        
     }
 
       float totalNormturn = 0.0;
@@ -178,8 +203,12 @@ void printstats(Process processes[], int numProcesses,int policy_number) {
         totalNormturn += processes[i].stats.normturn;
     }
     float meanNormturn = totalNormturn/ (float)numProcesses;
-    
-     printf("  %-4.2f  |", meanNormturn);
+
+     if(meanNormturn>=10.0)
+		printf("%2.2f|\n",meanNormturn);
+    else
+	 	printf(" %2.2f|\n",meanNormturn);
+
     printf("\n");
 }
 
@@ -246,10 +275,8 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
     int remaining_processes = num_processes;
     float current_time = 0, min_arrival_time = INT_MAX, burst_remaining[num_processes], arrival_time[num_processes];
     int total_wait_time, total_turnaround_time;
-    int schedule[num_processes][20];
-    char execution_sequence[1000];
-    int start_times[num_processes][20];
-    int exec_index = 0;
+    int schedule[num_processes][timeline];
+    int start_times[num_processes][timeline];
     bool process_found = false;
     int process_index = -1;
     int i, j;
@@ -260,7 +287,7 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
         
         arrival_time[i] = processes[i].arrival_time;
         burst_remaining[i] = processes[i].remaining_time;
-        for (j = 0; j < 20; j++) {
+        for (j = 0; j < timeline; j++) {
             start_times[i][j]=-1;
             schedule[i][j] = -1;
             processes[i].timeline[j]=-1;
@@ -317,7 +344,7 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
 
 
         // Record execution sequence
-        execution_sequence[exec_index++] = processes[process_index].name;
+        
 
         // calculating start time for the process
         j = 0;
@@ -363,12 +390,15 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
         if (burst_remaining[process_index] == 0) {
             remaining_processes--;
             processes[process_index].completed=true;
-            processes[process_index].end_time = current_time - 1; // Set the actual end time when the process is fully completed
+            processes[process_index].end_time = current_time ; // Set the actual end time when the process is fully completed
+            processes[process_index].stats.finish_time=processes[process_index].end_time;
             processes[process_index].wait_time = processes[process_index].end_time - processes[process_index].arrival_time - processes[process_index].service_time;
             total_wait_time += processes[process_index].wait_time;
             processes[process_index].stats.turnaround = processes[process_index].service_time + processes[process_index].wait_time;
             total_turnaround_time += processes[process_index].stats.turnaround;
-            for (int t = (int)current_time; t < 20; t++) {
+            processes[process_index].stats.normturn = (float)processes[process_index].stats.turnaround / (float)processes[process_index].service_time;
+
+            for (int t = (int)current_time; t < timeline; t++) {
                 processes[process_index].timeline[t] = -1; // Finished
             }
         } else {
@@ -380,7 +410,7 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
 }
 
 
-    // Print trace output (timeline)
+   
  void srt(Process processes[], int num_processes, int timeline) {
     
     int time = 0;
@@ -391,7 +421,7 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
         int shortest_idx = -1;
         int shortest_time = INT_MAX;
 
-        // Find the process with the shortest remaining time that has arrived
+        
         for (int i = 0; i < num_processes; i++) {
             if (!processes[i].completed &&
                 processes[i].arrival_time <= time &&
@@ -403,7 +433,7 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
         }
 
         if (shortest_idx == -1) {
-            // No process is ready, advance time
+            
             //printf("NOUURR");
             time++;
             continue;
@@ -411,9 +441,9 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
 
         Process &current = processes[shortest_idx];
 
-        // Update start_time only the first time the process is selected
+        
         if (current.start_time == -1) {
-            current.start_time = time; // Record the time the process starts
+            current.start_time = time; 
         }
 
         // Update timeline
@@ -423,11 +453,11 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
             }
         }
 
-        // Execute the process for 1 unit of time
+        
         current.remaining_time--;
         time++;
 
-        // Check if the process is completed
+        // update stats
         if (current.remaining_time == 0) {
             current.completed = true;
             current.end_time = time-1; // Record the end time
@@ -450,185 +480,229 @@ void round_robin(Process processes[], int num_processes, int quantum, int timeli
 }
  
 
-void fb_2i(Process processes[], int num_processes) {
-    priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int>>> pq; // Pair of priority level and process index
-    unordered_map<int, int> remainingServiceTime; // Map from process index to remaining service time
-    int j = 0;
-
-    // Initialize timeline to -1 for all processes
+void systemCheck(Process p[], int num_processes, int currentTime, std::vector<std::queue<int>>& queues) {
     for (int i = 0; i < num_processes; i++) {
-        for (int t = 0; t < 20; t++) {
-            processes[i].timeline[t] = -1;
-        }
+        if (!p[i].completed && p[i].arrival_time == currentTime&& p[i].remaining_time==p[i].service_time) {
+            queues[0].push(i);
+          }
     }
-
-    int current_time = 0;
-
-    // Add the first process if it arrives at time 0
-    while (j < num_processes && processes[j].arrival_time <= current_time) {
-        pq.push(make_pair(0, j));
-        remainingServiceTime[j] = processes[j].service_time;
-        processes[j].timeline[current_time] = 0; // In ready queue
-        j++;
+}
+int executeProcess(Process* p, int quantum, int currentTime) {
+    int actualExecution = std::min(quantum, p->remaining_time);
+    for (int i = 0; i < actualExecution; i++) {
+        p->timeline[currentTime + i] = 1; // Mark as executing
     }
+    p->remaining_time -= actualExecution; 
+     //--//TODO
 
-    // Main scheduling loop
-    while (!pq.empty() || j < num_processes) {
-        if (!pq.empty()) {
-            int priorityLevel = pq.top().first;
-            int processIndex = pq.top().second;
-            pq.pop();
-
-            int currentQuantum = pow(2, priorityLevel);
-            int temp = current_time;
-
-            // Execute the current process within its quantum
-            while (currentQuantum > 0 && remainingServiceTime[processIndex] > 0) {
-                // Mark the current process as executing
-                processes[processIndex].timeline[temp] = 1;
-                remainingServiceTime[processIndex]--;
-                currentQuantum--;
-                temp++;
-
-                // Add newly arrived processes during execution
-                while (j < num_processes && processes[j].arrival_time <= temp) {
-                    pq.push(make_pair(0, j));
-                    remainingServiceTime[j] = processes[j].service_time;
-                    processes[j].timeline[temp] = 0; // Mark as ready
-                    j++;
-                }
-
-                // Mark other ready processes in the timeline
-                for (int i = 0; i < num_processes; i++) {
-                    if (!processes[i].completed && processes[i].timeline[temp - 1] == -1 && processes[i].arrival_time <= temp - 1) {
-                        processes[i].timeline[temp - 1] = 0; // In ready queue
-                    }
-                }
-            }
-
-            // Check if the process is completed
-            if (remainingServiceTime[processIndex] == 0) {
-                processes[processIndex].end_time = temp; // Set finish time
-                processes[processIndex].completed = true;
-                 // Update process statistics
-                processes[processIndex].stats.finish_time = processes[processIndex].end_time;
-                processes[processIndex].stats.turnaround = processes[processIndex].stats.finish_time - processes[processIndex].arrival_time;
-                processes[processIndex].stats.normturn = (float)processes[processIndex].stats.turnaround / (float)processes[processIndex].service_time;
-           
-            } else {
-                // Increment priority level and reinsert into the queue
-                pq.push(make_pair(priorityLevel + 1, processIndex));
-            }
-
-            current_time = temp; // Update current time
-        }
-
-        // Add any newly arrived processes
-        while (j < num_processes && processes[j].arrival_time <= current_time) {
-            pq.push(make_pair(0, j));
-            remainingServiceTime[j] = processes[j].service_time;
-            processes[j].timeline[current_time] = 0; // In ready queue
-            j++;
-        }
-
-        // If no processes are ready, move the time forward
-        if (pq.empty() && j < num_processes) {
-            current_time = processes[j].arrival_time;
-        }
+    if (p->remaining_time <= 0) {
+        p->completed = true;
+        p->end_time = currentTime + actualExecution-1;
+        p->stats.finish_time=p->end_time+1;
     }
-
-    
+   // currentTime=currentTime;
+    return currentTime+actualExecution;
 }
 
-//beta3t nour
-void feedback_scheduling(Process processes[], int num_processes, int timeline, const char *mode) {
-    vector<queue<Process>> mlfq(10); // Multi-level Feedback Queue with 10 levels
-    vector<Process> completed_processes; // To store completed processes
-    int current_time = 0;
+int checkCompleteness(std::queue<int>& processQueue, Process p[], std::queue<int>& tempQueue) {
+    while (!processQueue.empty()) {
+        int front_index = processQueue.front();
+        processQueue.pop();
 
-    // Push all processes into the highest priority queue at their arrival time
-    for (int i = 0; i < num_processes; ++i) {
-        processes[i].start_time = -1; // Initialize start time
-        processes[i].end_time = -1;  // Initialize end time
-    }
-
-    while (current_time < timeline || !completed_processes.empty()) {
-        // Push newly arrived processes to the highest priority queue
-          bool all_queues_empty = true;
-    for (const auto &q : mlfq) {
-        if (!q.empty()) {
-            all_queues_empty = false;
-            break;
+        if (!p[front_index].completed) {
+            return front_index; // Return the index of the valid process
+        } else {
+            // Skip completed processes and store them temporarily
+            tempQueue.push(front_index);
         }
     }
-    if (all_queues_empty && completed_processes.size() == num_processes) {
-        break; // Exit if all processes are completed
+
+    // Restore skipped processes back into the queue
+    while (!tempQueue.empty()) {
+    int idx = tempQueue.front();
+    tempQueue.pop();
+    if (!p[idx].completed) {
+        processQueue.push(idx); // Restore only incomplete processes
     }
-        for (int i = 0; i < num_processes; ++i) {
-            if (processes[i].arrival_time == current_time && !processes[i].completed) {
-                mlfq[0].push(processes[i]);
-            }
+}
+
+    return -1; // No valid process found
+}
+
+void fb_2i(Process p[], int num_processes) {
+    const int max_queues = num_processes;
+    std::vector<std::queue<int>> queues(max_queues);
+    int currentTime = 0;
+    int currentTimeAfterEx=currentTime;
+
+    // Initialize timeline and push initial processes
+    for (int i = 0; i < num_processes; i++) {
+         if (p[i].arrival_time == 0) {
+            queues[0].push(i);
         }
+    }
 
-        bool processed = false;
+    while (true) {
+        bool allQueuesEmpty = true;
+         // Check arrivals at the current time
+        systemCheck(p, num_processes, currentTime, queues);
 
-        // Iterate over queues and process tasks
-        for (size_t i = 0; i < mlfq.size(); ++i) {
-            if (!mlfq[i].empty()) {
-                Process current = mlfq[i].front();
-                mlfq[i].pop();
+        for (int j = 0; j < max_queues; j++) {
 
-                if (current.start_time == -1) {
-                    current.start_time = current_time;
+        
+            if (!queues[j].empty()) {
+                // Check arrivals at the current time
+                if(currentTimeAfterEx!=currentTime)
+        systemCheck(p, num_processes, currentTimeAfterEx, queues);
+
+                allQueuesEmpty = false;
+                 // Check for newly arrived processes in previous queues
+                for(int i=0;i<j;i++){
+                   if(!queues[i].empty() ){
+                      j=i;
+                    }
+                 }
+                       
+                 std::queue<int> tempQueue; // Temporary queue for skipped processes
+                int process_index = checkCompleteness(queues[j], p, tempQueue);
+
+                // If no valid process is found, continue to the next queue
+                if (process_index == -1) {
+                    continue;
                 }
+                Process* currentProcess = &p[process_index];
+                int quantum = std::pow(2, j);
 
-                // Process for one quantum (q=1)
-                current.remaining_time -= 1;
-                current_time++;
-                processed = true;
-
-                // Trace mode output
-                if (strcmp(mode, "trace") == 0) {
-                    cout << "Time " << current_time << ": Process " << current.name
-                         << " executed (queue " << i + 1 << ")\n";
-                }
-
-                // Check if process is completed
-                if (current.remaining_time == 0) {
-                    current.completed = true;
-                    current.end_time = current_time;
-                    current.stats.turnaround = current.end_time - current.arrival_time;
-                    current.stats.normturn = current.stats.turnaround / (float)current.service_time;
-                    completed_processes.push_back(current);
-                } else {
-                    // Push to next lower priority queue
-                    if (i + 1 < mlfq.size()) {
-                        mlfq[i + 1].push(current);
+                currentTimeAfterEx= executeProcess(currentProcess, quantum, currentTimeAfterEx);
+                if (currentProcess->completed) {
+                } else if (!currentProcess->completed) {
+                    if (j + 1 < max_queues) {
+                        queues[j + 1].push(process_index);
                     } else {
-                        mlfq[i].push(current); // Stay in the same queue if no lower queue exists
+                        queues[j].push(process_index);
                     }
                 }
-
-                break; // Process only one task per time step
+                currentTime++;
+                 break; // Exit after handling one process to simulate timeline iteration
             }
         }
 
-        if (!processed) {
-            current_time++; // Increment time if no task is processed
+        if (allQueuesEmpty) {
+            bool anyProcessIncomplete = false;
+            for (int i = 0; i < num_processes; i++) {
+                if (!p[i].completed) {
+                    anyProcessIncomplete = true;
+                    break;
+                }
+            }
+            if (!anyProcessIncomplete) {
+                break;
+            }
+                }
+    }
+
+    // Fill in wait times and mark idle times
+    for (int i = 0; i < num_processes; i++) {
+        int arrivalTime = p[i].arrival_time;
+        for (int k = arrivalTime; k < p[i].end_time; k++) {
+            if (p[i].timeline[k] != 1) {
+                p[i].timeline[k] = 0;
+            }
+        }
+        p[i].wait_time = p[i].end_time - p[i].arrival_time - p[i].service_time;
+        p[i].stats.turnaround = p[i].stats.finish_time- p[i].arrival_time;
+        p[i].stats.normturn = static_cast<float>(p[i].stats.turnaround) / p[i].service_time;
+    }
+}
+
+void fb_1(Process p[], int num_processes) {
+    const int max_queues = num_processes;
+    std::vector<std::queue<int>> queues(max_queues);
+    int currentTime = 0;
+    int currentTimeAfterEx=currentTime;
+
+    // Initialize timeline and push initial processes
+    for (int i = 0; i < num_processes; i++) {
+         if (p[i].arrival_time == 0) {
+            queues[0].push(i);
         }
     }
 
-    // Stats mode output
-    if (strcmp(mode, "stats") == 0) {
-        cout << "Name\tArrival\tService\tStart\tEnd\tTurnaround\tNormTurn\n";
-        for (const auto &process : completed_processes) {
-            cout << process.name << "\t" << process.arrival_time << "\t" << process.service_time << "\t"
-                 << process.start_time << "\t" << process.end_time << "\t"
-                 << fixed << setprecision(2) << process.stats.turnaround << "\t\t"
-                 << process.stats.normturn << "\n";
+    while (true) {
+        bool allQueuesEmpty = true;
+         // Check arrivals at the current time
+        systemCheck(p, num_processes, currentTime, queues);
+
+        for (int j = 0; j < max_queues; j++) {
+
+        
+            if (!queues[j].empty()) {
+                // Check arrivals at the current time
+                if(currentTimeAfterEx!=currentTime)
+        systemCheck(p, num_processes, currentTimeAfterEx, queues);
+
+                allQueuesEmpty = false;
+                 // Check for newly arrived processes in previous queues
+                for(int i=0;i<j;i++){
+                   if(!queues[i].empty() ){
+                      j=i;
+                    }
+                 }
+              
+                std::queue<int> tempQueue; // Temporary queue for skipped processes
+                int process_index = checkCompleteness(queues[j], p, tempQueue);
+
+                 // If no valid process is found, continue to the next queue
+                if (process_index == -1) {
+                    continue;
+                }
+                Process* currentProcess = &p[process_index];
+                int quantum = 1;
+
+                currentTimeAfterEx= executeProcess(currentProcess, quantum, currentTimeAfterEx);
+                if (currentProcess->completed) {
+                  } else if (!currentProcess->completed) {
+                    if (j + 1 < max_queues) {
+                        queues[j + 1].push(process_index);
+                    } else {
+                        queues[j].push(process_index);
+                    }
+                }
+         
+                currentTime++;
+                 break; // Exit after handling one process to simulate timeline iteration
+            }
         }
+
+        if (allQueuesEmpty) {
+            bool anyProcessIncomplete = false;
+            for (int i = 0; i < num_processes; i++) {
+                if (!p[i].completed) {
+                    anyProcessIncomplete = true;
+                    break;
+                }
+            }
+            if (!anyProcessIncomplete) {
+                break;
+            }
+        }
+
+        }
+
+    // Fill in wait times and mark idle times
+    for (int i = 0; i < num_processes; i++) {
+        int arrivalTime = p[i].arrival_time;
+        for (int k = arrivalTime; k < p[i].end_time; k++) {
+            if (p[i].timeline[k] != 1) {
+                p[i].timeline[k] = 0;
+            }
+        }
+        p[i].wait_time = p[i].end_time - p[i].arrival_time - p[i].service_time;
+        p[i].stats.turnaround = p[i].stats.finish_time- p[i].arrival_time;
+        p[i].stats.normturn = static_cast<float>(p[i].stats.turnaround) / p[i].service_time;
     }
 }
+
 
 
 
@@ -789,12 +863,12 @@ bool byPriorityLevel (const tuple<int,int,int>&a,const tuple<int,int,int>&b){
     return get<0>(a) > get<0>(b);
 }
 
-void aging(Process processes[], int process_count, int timeline,int quantum) {
-    std::vector<std::tuple<int, int, int>> processes_vector; //tuple of priority level, process index and total waiting time
+void aging(Process processes[], int num_processes, int timeline,int quantum) {
+    std::vector<std::tuple<int, int, int>> processes_vector; //priority level, process index and waiting time
     int j=0,currentProcess=-1;
-
-    for(int time =0;time<timeline;time++){
-        while(j<process_count && processes[j].arrival_time<=time){
+       //intialize process vector
+    for(int current_time =0;current_time<timeline;current_time++){
+        while(j<num_processes && processes[j].arrival_time<=current_time){
             processes_vector.push_back(make_tuple(processes[j].service_time,j,0));
             j++;
         }
@@ -812,16 +886,16 @@ void aging(Process processes[], int process_count, int timeline,int quantum) {
         sort(processes_vector.begin(),processes_vector.end(),byPriorityLevel);
         currentProcess=get<1>(processes_vector[0]);
         int k=get<1>(processes_vector[0]);
-        int currentQuantum = quantum;
-        while(currentQuantum-- && time<timeline){
-            //timeline[time][currentProcess]='*';
-            processes[k].timeline[time]=1;
-            time++;
+        int current_Quantum = quantum;
+        while(current_Quantum-- && current_time<timeline){
+           
+            processes[k].timeline[current_time]=1;
+            current_time++;
         }
-        time--;
+        current_time--;
     }
-    //fillInWaitTime();
-    for(int i=0; i<process_count; i++){
+    
+    for(int i=0; i<num_processes; i++){
          for (int j = processes[i].arrival_time; j < timeline; j++){
             if(processes[i].timeline[j]!=1)
                processes[i].timeline[j]=0;
@@ -855,7 +929,7 @@ void executePolicy(int policy_id, int quantum, Process processes[], int num_proc
             break;
         case 6:
             //printf("FB-1:\n");
-           // feedback_scheduling(processes, num_processes);
+           fb_1(processes, num_processes);
             break;
         case 7:
             //printf("FB-2i:\n");
@@ -920,8 +994,8 @@ int main() {
         // Execute the policy
         executePolicy(policy_id, quantum, cloned_processes, num_processes,timeline);
         if (strcmp(mode,"trace")==0){
-        printTrace(cloned_processes,num_processes,policy_id,quantum);
-        }else printstats(cloned_processes,num_processes,policy_id);
+        printTrace(cloned_processes,num_processes,policy_id,quantum,timeline);
+        }else printstats(cloned_processes,num_processes,policy_id,quantum);
         // Move to the next policy
         policy_token = strtok(NULL, ",");
     }
