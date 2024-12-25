@@ -33,7 +33,7 @@ typedef struct {
     int remaining_time;
     Stats stats;  
     bool completed; 
-    int timeline[20];  //array for 0: . 1: *  -1: nothingfor print trace function 
+    int *timeline;  //array for 0: . 1: *  -1: nothingfor print trace function 
 } Process;
 
 typedef struct {
@@ -213,13 +213,13 @@ void printstats(Process processes[], int numProcesses,int policy_number,int quan
 }
 
 
-void fcfs(Process p[], int num_processes) {
+void fcfs(Process p[], int num_processes,int timeline) {
     queue<Process*> process_queue; // Queue to hold processes
     int current_time = 0;
 
     // Initialize timelines for all processes
     for (int i = 0; i < num_processes; ++i) {
-        for (int t = 0; t < 20; t++) { // Assuming a maximum time of 100
+        for (int t = 0; t < timeline; t++) { // Assuming a maximum time of 100
             p[i].timeline[t] = -1; // Initially, set all timeline values to idle (-1)
         }
         process_queue.push(&p[i]);
@@ -529,13 +529,13 @@ int checkCompleteness(std::queue<int>& processQueue, Process p[], std::queue<int
     return -1; // No valid process found
 }
 
-void fb_2i(Process p[], int num_processes) {
+void fb_2i(Process p[], int num_processes,int timeline) {
     const int max_queues = num_processes;
     std::vector<std::queue<int>> queues(max_queues);
     int currentTime = 0;
     int currentTimeAfterEx=currentTime;
 
-    // Initialize timeline and push initial processes
+    // push initial processes
     for (int i = 0; i < num_processes; i++) {
          if (p[i].arrival_time == 0) {
             queues[0].push(i);
@@ -615,7 +615,7 @@ void fb_2i(Process p[], int num_processes) {
     }
 }
 
-void fb_1(Process p[], int num_processes) {
+void fb_1(Process p[], int num_processes,int timeline) {
     const int max_queues = num_processes;
     std::vector<std::queue<int>> queues(max_queues);
     int currentTime = 0;
@@ -707,13 +707,13 @@ void fb_1(Process p[], int num_processes) {
 
 
 
-void spn(Process p[], int num_processes) {
+void spn(Process p[], int num_processes,int timeline) {
     int current_time = 0;
     int completed_count = 0;
 
     // Initialize all timelines to -1 (nothing happening)
     for (int i = 0; i < num_processes; i++) {
-        for (int t = 0; t < 20; t++) { // Assuming max time as 100
+        for (int t = 0; t < timeline; t++) { // Assuming max time as 100
             p[i].timeline[t] = -1;
         }
     }
@@ -782,13 +782,13 @@ void spn(Process p[], int num_processes) {
     // Print the trace after scheduling is done
     //printTrace(p, num_processes, current_time);
 }
-void hrrn(Process processes[], int numProcesses) {
+void hrrn(Process processes[], int numProcesses,int timeline) {
     int current_time = 0;
     int completed = 0;
 
     // Initialize timelines for all processes
     for (int i = 0; i < numProcesses; ++i) {
-        for (int t = 0; t < 20; t++) { // Assuming a maximum time of 100
+        for (int t = 0; t < timeline; t++) { // Assuming a maximum time of 100
             processes[i].timeline[t] = -1; // Initially, set all timeline values to idle (-1)
         }
     }
@@ -909,7 +909,7 @@ void executePolicy(int policy_id, int quantum, Process processes[], int num_proc
     switch (policy_id) {
         case 1:
             //printf("FCFS:\n");
-            fcfs(processes, num_processes);
+            fcfs(processes, num_processes, timeline);
             break;
         case 2:
             //printf("RR-%d:\n", quantum);
@@ -917,7 +917,7 @@ void executePolicy(int policy_id, int quantum, Process processes[], int num_proc
             break;
         case 3:
             //printf("SPN:\n");
-            spn(processes, num_processes);
+            spn(processes, num_processes,timeline);
             break;
         case 4:
             //printf("SRT:\n");
@@ -925,15 +925,15 @@ void executePolicy(int policy_id, int quantum, Process processes[], int num_proc
             break;
         case 5:
             //printf("HRRN:\n");
-            hrrn(processes, num_processes);
+            hrrn(processes, num_processes, timeline);
             break;
         case 6:
             //printf("FB-1:\n");
-           fb_1(processes, num_processes);
+           fb_1(processes, num_processes ,timeline);
             break;
         case 7:
             //printf("FB-2i:\n");
-            fb_2i(processes, num_processes);
+            fb_2i(processes, num_processes,timeline);
             break;
          case 8:
             //printf("Aging:\n");
@@ -971,7 +971,7 @@ int main() {
         processes[i].start_time = -1;
         processes[i].wait_time=0;
         processes[i].remaining_time=processes[i].service_time;
-
+        processes[i].timeline= new int[timeline];
         for (int j = 0; j < timeline; j++) {
             processes[i].timeline[j] = -1;
         }
@@ -1058,7 +1058,7 @@ getchar();
         processes[i].stats.turnaround = 0.0;
         processes[i].stats.normturn = 0.0;
         processes[i].completed=false;
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < timeline; i++) {
                 processes[i].timeline[i]=-1;
 }
     }
