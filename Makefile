@@ -14,6 +14,6 @@ clean:
 	rm -f $(TARGET) $(OBJS)
 
 run:
-	./$(TARGET) < 04a-input.txt
+	./$(TARGET) < 10b-input.txt
 
 .PHONY: all clean run
