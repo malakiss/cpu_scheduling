@@ -15,7 +15,7 @@
 
 using namespace std;
 #define MAX_PROCESSES 100
-
+#define all(v) v.begin(), v.end()
 
 typedef struct {
     int finish_time;
@@ -33,7 +33,7 @@ typedef struct {
     int remaining_time;
     Stats stats;  
     bool completed; 
-    int timeline[20];  //array for 0: . 1: *  -1: nothingfor print trace function 
+    int timeline[100];  //array for 0: . 1: *  -1: nothingfor print trace function 
 } Process;
 
 typedef struct {
@@ -707,13 +707,13 @@ void fb_1(Process p[], int num_processes) {
 
 
 
-void spn(Process p[], int num_processes) {
+void spn(Process p[], int num_processes,int timeline) {
     int current_time = 0;
     int completed_count = 0;
 
     // Initialize all timelines to -1 (nothing happening)
     for (int i = 0; i < num_processes; i++) {
-        for (int t = 0; t < 20; t++) { // Assuming max time as 100
+        for (int t = 0; t < timeline; t++) { // Assuming max time as 100
             p[i].timeline[t] = -1;
         }
     }
@@ -782,13 +782,13 @@ void spn(Process p[], int num_processes) {
     // Print the trace after scheduling is done
     //printTrace(p, num_processes, current_time);
 }
-void hrrn(Process processes[], int numProcesses) {
+void hrrn(Process processes[], int numProcesses,int timeline) {
     int current_time = 0;
     int completed = 0;
 
     // Initialize timelines for all processes
     for (int i = 0; i < numProcesses; ++i) {
-        for (int t = 0; t < 20; t++) { // Assuming a maximum time of 100
+        for (int t = 0; t < timeline; t++) { // Assuming a maximum time of 100
             processes[i].timeline[t] = -1; // Initially, set all timeline values to idle (-1)
         }
     }
@@ -917,7 +917,7 @@ void executePolicy(int policy_id, int quantum, Process processes[], int num_proc
             break;
         case 3:
             //printf("SPN:\n");
-            spn(processes, num_processes);
+            spn(processes, num_processes,timeline);
             break;
         case 4:
             //printf("SRT:\n");
@@ -925,7 +925,7 @@ void executePolicy(int policy_id, int quantum, Process processes[], int num_proc
             break;
         case 5:
             //printf("HRRN:\n");
-            hrrn(processes, num_processes);
+            hrrn(processes, num_processes,timeline);
             break;
         case 6:
             //printf("FB-1:\n");
